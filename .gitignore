@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Pi runtime data (session logs, suggester history — machine-generated, user-local)
+.pi/suggester/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Autoresearch session files
+autoresearch.md
+autoresearch.sh
+autoresearch.jsonl
+autoresearch_bench.py
+autoresearch.ideas.md
+autoresearch.checks.sh
