@@ -47,6 +47,7 @@ pi-essence/
 | `skills/poet/` | Human prose quality: active voice, concision, specificity for README, docs, roadmaps, changelogs | ✅ Built |
 | `skills/architect/` | AI-consumable doc quality: RFC 2119, metadata, language rules for SKILL.md, commands, system prompts | ✅ Built |
 | `skills/gws/` | Google Workspace CLI (`gws`): Drive, Gmail, Sheets, Calendar, Docs, Tasks, Chat, and more | ✅ Built |
+| `skills/md-to-gdoc/` | Convert `.md` files to Google Docs via pandoc + Drive API; handles mermaid diagrams, tables with auto-sized columns | ✅ Built |
 | `skills/web-search/` | Search the web and extract page content | 🔜 Planned |
 | `skills/code-review/` | Structured code review workflow | 🔜 Planned |
 | `skills/git-workflow/` | Conventional commits, PR descriptions, changelogs | 🔜 Planned |
