@@ -9,25 +9,29 @@ flowchart TD
     A["`**.md file**`"] --> B{Contains\nmermaid blocks?}
     B -- Yes --> C[Render each block\nvia mermaid.ink → PNG]
     B -- No --> D
-    C --> D[Replace fences with\n local image references]
-    D --> E["pandoc\nmarkdown → .docx\n(images embedded)"]
-    E --> F["gws drive files upload\nmimeType: gdoc\n→ Drive auto-converts"]
-    F --> G[gws docs documents get\nfetch doc structure]
+    C --> C2[Upload PNG to Drive\nmake public]
+    C2 --> D[Replace fences with\nplain-text placeholders]
+    D --> E["gws drive files upload\nmimeType: gdoc + text/markdown\n→ Drive native import"]
+    E --> F[gws docs documents get\nfetch doc structure]
+    F --> G[Replace placeholders\nwith insertInlineImage]
     G --> H{Tables\nfound?}
     H -- Yes --> I[Measure max text length\nper column → distribute\n468pt proportionally]
     I --> J[updateTableColumnProperties\nFIXED_WIDTH per column]
     H -- No --> K
-    J --> K[/"✓ Google Doc URL"/]
+    J --> K[Delete temp Drive PNGs]
+    K --> L[/"✓ Google Doc URL"/]
 ```
 
 ## Conversion Pipeline — Step by Step
 
 | Step | Mechanism |
 |------|-----------|
-| **1 — Mermaid** | Extracts ` ```mermaid ` blocks → renders PNG via `mermaid.ink` (tries raw base64url, falls back to JSON envelope) → embeds as local image reference |
-| **2 — DOCX** | `pandoc --from=markdown+smart --to=docx` — handles headings, bold/italic, tables, lists, blockquotes, links, code blocks, images natively |
-| **3 — Upload** | `gws drive files upload` with `mimeType: application/vnd.google-apps.document` — Google Drive auto-converts the `.docx` to a Google Doc |
-| **4 — Column widths** | Fetches doc structure → measures max text length per column → distributes 468 pt page width proportionally → `updateTableColumnProperties` with `FIXED_WIDTH` |
+| **1 — Mermaid pre-process** | Extracts ` ```mermaid ` blocks → renders PNG via `mermaid.ink` → uploads PNG to Drive (public) → replaces fence with a plain-text placeholder |
+| **2 — Native upload** | Uploads the `.md` as `text/markdown` with `mimeType: application/vnd.google-apps.document` — Google Drive natively imports it as a Google Doc (real code blocks with syntax highlighting) |
+| **3 — Pageless mode** | Optionally sets the doc to pageless layout via `updateDocumentStyle` |
+| **4 — Mermaid insertion** | Finds placeholder paragraphs → deletes text → `insertInlineImage` at full page width |
+| **5 — Column widths** | Fetches doc structure → measures max text length per column → distributes 468 pt page width proportionally (sqrt-weighted) → `updateTableColumnProperties` with `FIXED_WIDTH` |
+| **6 — Cleanup** | Deletes temporary mermaid PNGs from Drive |
 
 ## Quick Start
 
@@ -35,12 +39,8 @@ flowchart TD
 # 1. Authenticate (one-time)
 gws auth login -s drive,docs
 
-# 2. Install pandoc (one-time)
-brew install pandoc   # macOS
-# apt install pandoc  # Ubuntu
-
-# 3. Convert
-node skills/md-to-gdoc/scripts/convert.js path/to/document.md --title "My Doc"
+# 2. Convert
+node skills/md-gdoc/scripts/convert.js path/to/document.md --title "My Doc"
 # → https://docs.google.com/document/d/DOC_ID/edit
 ```
 
@@ -51,6 +51,7 @@ node skills/md-to-gdoc/scripts/convert.js path/to/document.md --title "My Doc"
 | `--title "My Title"` | filename (no extension) | Google Doc title |
 | `--folder-id ID` | My Drive root | Destination Drive folder |
 | `--page-width 468` | `468` (US Letter, 1" margins) | Page body width in points for column sizing |
+| `--paged` | off (pageless) | Use paginated layout instead of pageless |
 
 ## What Gets Preserved
 
@@ -58,16 +59,15 @@ node skills/md-to-gdoc/scripts/convert.js path/to/document.md --title "My Doc"
 |----------|-----------|
 | `# H1` … `###### H6` | HEADING_1 … HEADING_6 styles |
 | `**bold**`, `*italic*`, `***both***` | Bold, italic, bold+italic |
-| `` `inline code` `` | Courier New inline |
-| ```` ```code block``` ```` | Preformatted monospace |
+| `` `inline code` `` | Monospace inline |
+| ```` ```code block``` ```` | Code block with syntax highlighting |
 | `[text](url)` | Hyperlink |
-| `![alt](src)` | Embedded inline image |
+| `![alt](url)` | Inline image (public URLs only) |
 | `- item`, `1. item` | Unordered / ordered lists (nested ✓) |
 | `> blockquote` | Indented paragraph |
 | `\| table \|` | Table with proportional column widths |
 | ` ```mermaid ` | Rendered PNG inline image |
 | `---` | Horizontal rule |
-| `[^1]` footnotes | Footnotes |
 
 ## Pseudo-Logic: Column Width Algorithm
 
@@ -85,10 +85,11 @@ for (const row of table.tableRows) {
   });
 }
 
-// 2. Distribute page width proportionally
-const totalLen = maxLens.reduce((a, b) => a + b, 0);
-let widths = maxLens.map(l =>
-  Math.max(MIN_PT, Math.round((l / totalLen) * PAGE_WIDTH_PT))
+// 2. Distribute page width proportionally (sqrt-weighted)
+const weights = maxLens.map(l => Math.sqrt(l));
+const total = weights.reduce((a, b) => a + b, 0);
+let widths = weights.map(w =>
+  Math.max(MIN_PT, Math.round((w / total) * PAGE_WIDTH_PT))
 );
 
 // 3. Scale down if columns overflow page
@@ -115,8 +116,8 @@ widths.forEach((magnitude, columnIndex) => {
 sequenceDiagram
     participant Script as convert.js
     participant Ink as mermaid.ink
-    participant Pandoc as pandoc
     participant Drive as Google Drive
+    participant Docs as Docs API
 
     Script->>Ink: GET /img/base64url?type=png&width=2000
     alt Render OK — PNG larger than 200 bytes
@@ -126,21 +127,22 @@ sequenceDiagram
         alt Fallback OK
             Ink-->>Script: PNG file
         else Both failed
-            Script-->>Script: Keep as plain code block
+            Script-->>Script: Leave placeholder as text
         end
     end
-    Script->>Pandoc: markdown with local image refs
-    Pandoc-->>Script: output.docx with images embedded
-    Script->>Drive: upload docx, mimeType gdoc
-    Drive-->>Script: converted Google Doc ID
+    Script->>Drive: upload PNG, make public
+    Drive-->>Script: fileId + public URL
+    Script->>Drive: upload .md as text/markdown → gdoc
+    Drive-->>Script: Google Doc ID
+    Script->>Docs: batchUpdate — replace placeholders with insertInlineImage
+    Script->>Drive: delete temp PNG files
 ```
 
 ## Gotchas
 
-- **pandoc is required** — install before running; the script exits early with instructions if missing.
-- **Mermaid needs internet** — mermaid.ink is a public service. On offline/restricted networks, mermaid blocks fall back to plain code blocks; the rest of the document still converts.
+- **Mermaid needs internet** — mermaid.ink is a public service. On offline/restricted networks, mermaid blocks fall back to plain text placeholders; the rest of the document still converts.
+- **Images in the source .md** — only publicly accessible remote URLs are supported; Drive's native import cannot resolve local file paths. Host images externally before conversion.
 - **Column widths use character count** as a proxy for visual width — works well for prose-heavy tables. Tables with many short values (e.g., status columns) may need manual fine-tuning in Google Docs.
-- **Drive conversion fidelity** — Google's docx importer is excellent but not pixel-perfect. Complex pandoc-specific styles (e.g., custom reference.docx themes) may not survive.
 - **Table optimization is non-fatal** — a failure to set column widths logs a warning but never blocks the upload.
 
 ## Dependencies
@@ -148,14 +150,13 @@ sequenceDiagram
 | Tool | Purpose | Install |
 |------|---------|---------|
 | `gws` CLI | Google Drive upload + Docs API | [buildwithpi.ai](https://buildwithpi.ai) |
-| `pandoc` | Markdown → DOCX conversion | `brew install pandoc` |
 | `curl` | mermaid.ink PNG download | pre-installed on macOS/Linux |
 | `node` | Run `convert.js` | [nodejs.org](https://nodejs.org) |
 
 ## File Structure
 
 ```
-skills/md-to-gdoc/
+skills/md-gdoc/
 ├── SKILL.md                     ← pi skill definition (auto-loaded by pi)
 ├── README.md                    ← this file
 ├── scripts/

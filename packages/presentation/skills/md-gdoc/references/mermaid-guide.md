@@ -77,7 +77,7 @@ graph TD; A-->B
 ![System diagram](./diagram.png)
 ```
 
-Now run `convert.js` — it will embed the pre-rendered PNG via pandoc.
+Now run `convert.js` — it will upload the PNG to Drive and embed it as an inline image.
 
 ---
 

@@ -1,0 +1,16 @@
+{
+  "name": "quality",
+  "version": "0.1.0",
+  "description": "Pi skills for prose and doc quality: architect (AI-consumable docs) + poet (human-facing prose)",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "pi": {
+    "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  }
+}

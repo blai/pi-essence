@@ -84,3 +84,4 @@ These differ from the generic Agent Skills spec:
 
 - `references/description-guide.md` — description formula, testing, optimization loop
 - `references/quality-checklist.md` — pre-ship checklist
+- `templates/skill.md` — starter template; copy to `skills/<name>/SKILL.md` when scaffolding a new skill

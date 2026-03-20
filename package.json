@@ -1,16 +1,10 @@
 {
   "name": "pi-essence",
   "version": "0.1.0",
-  "description": "Curated pi skills and extensions for the pi coding agent",
-  "keywords": ["pi-package"],
+  "description": "Monorepo for ideation, quality, and presentation skill packages",
+  "private": true,
   "license": "MIT",
-  "pi": {
-    "skills": ["./skills"]
-  },
-  "peerDependencies": {
-    "@mariozechner/pi-coding-agent": "*",
-    "@mariozechner/pi-ai": "*",
-    "@mariozechner/pi-tui": "*",
-    "@sinclair/typebox": "*"
-  }
+  "workspaces": [
+    "packages/*"
+  ]
 }

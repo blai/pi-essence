@@ -1,0 +1,16 @@
+{
+  "name": "presentation",
+  "version": "0.1.0",
+  "description": "Pi skills for Google Workspace output: gws (Workspace CLI) + md-gdoc (Markdown → Google Doc)",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "pi": {
+    "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  }
+}

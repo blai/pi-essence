@@ -2,42 +2,42 @@
 
 Load this file when:
 - A specific markdown element is missing or wrong in the converted Google Doc
-- The pandoc/upload approach is unavailable and manual Docs API requests are needed
+- Manual Docs API requests are needed to fix up the converted document
 - You need to understand which Docs API request type handles a given markdown construct
 
 ---
 
-## Element Coverage by pandoc → Drive conversion
+## Element Coverage by native Drive markdown import
 
-Most elements are handled transparently by pandoc's docx output + Google Drive's import.
+Most elements are handled transparently by Google Drive's native markdown import (`text/markdown` → `application/vnd.google-apps.document`).
 
-| Markdown element | Pandoc handling | Drive import | Notes |
-|-----------------|-----------------|--------------|-------|
-| `# H1` – `###### H6` | HEADING_1–6 styles | ✓ Preserved | |
-| `**bold**` / `__bold__` | Bold character style | ✓ Preserved | |
-| `*italic*` / `_italic_` | Italic character style | ✓ Preserved | |
-| `***bold italic***` | Bold + italic | ✓ Preserved | |
-| `` `inline code` `` | Courier New font | ✓ Preserved | |
-| ```` ```code block``` ```` | Preformatted text | ✓ Preserved (monospace) | Language hint dropped |
-| `[text](url)` | Hyperlink | ✓ Preserved | |
-| `![alt](src)` | Inline image | ✓ Embedded in docx | Local paths resolved via `--resource-path` |
-| `- item` / `* item` | Unordered list | ✓ Preserved | Nested lists ✓ |
-| `1. item` | Ordered list | ✓ Preserved | Nested lists ✓ |
-| `> blockquote` | Indented paragraph | ✓ (style may vary) | No native blockquote style in Docs |
-| `---` / `***` | Horizontal rule | ✓ (page-width line) | |
-| `| table |` | Table | ✓ Preserved; widths post-processed by script | |
-| `~~strikethrough~~` | Strikethrough | ✓ if `--from=markdown+strikeout` | Add `+strikeout` to pandoc flags |
-| `[^1]` footnotes | Footnote | ✓ Preserved | |
-| Definition lists | Definition list | Partial — flattened | pandoc extension `definition_lists` |
-| Math `$...$` | Not supported | ✗ Dropped | Pre-render to image with MathJax/KaTeX |
-| Raw HTML `<div>` | Stripped | ✗ | Use native markdown equivalents |
-| Mermaid ` ```mermaid ` | Pre-rendered to PNG | ✓ as inline image | Handled in Step 1 of convert.js |
+| Markdown element | Drive native import | Notes |
+|-----------------|---------------------|-------|
+| `# H1` – `###### H6` | ✓ HEADING_1–6 styles | |
+| `**bold**` / `__bold__` | ✓ Bold character style | |
+| `*italic*` / `_italic_` | ✓ Italic character style | |
+| `***bold italic***` | ✓ Bold + italic | |
+| `` `inline code` `` | ✓ Monospace font | |
+| ```` ```code block``` ```` | ✓ Code block with syntax highlighting | |
+| `[text](url)` | ✓ Hyperlink | |
+| `![alt](src)` | ✓ Inline image (public URLs only) | Local paths not supported; host images externally |
+| `- item` / `* item` | ✓ Unordered list | Nested lists ✓ |
+| `1. item` | ✓ Ordered list | Nested lists ✓ |
+| `> blockquote` | ✓ (style may vary) | No native blockquote style in Docs |
+| `---` / `***` | ✓ Horizontal rule | |
+| `| table |` | ✓ Table; widths post-processed by script | |
+| `~~strikethrough~~` | ✓ Strikethrough | |
+| `[^1]` footnotes | Partial — may flatten | |
+| Definition lists | ✗ Flattened to plain text | No equivalent in Docs |
+| Math `$...$` | ✗ Dropped | Pre-render to image with MathJax/KaTeX |
+| Raw HTML `<div>` | ✗ Stripped | Use native markdown equivalents |
+| Mermaid ` ```mermaid ` | ✓ as inline image | Pre-rendered to PNG by convert.js before upload |
 
 ---
 
 ## Manual Docs API requests (fallback)
 
-Use this section when you must construct `batchUpdate` requests by hand (e.g., pandoc unavailable, post-conversion fixups).
+Use this section when you must construct `batchUpdate` requests by hand (e.g., post-conversion fixups).
 
 ### Key rules
 - Document body starts at **index 1** (index 0 is a structural segment start).

@@ -1,32 +1,35 @@
 # pi-essence
 
-> A curated collection of skills and extensions for the [pi coding agent](https://buildwithpi.ai), installable as a single package.
+> Three focused pi skill packages — install the ones you need.
 
-## Install
+| Package | Install | Skills |
+|---------|---------|--------|
+| [`ideation`](./packages/ideation) | `pi install npm:ideation` | `smith` + `coach` — build pi extensions and skills |
+| [`quality`](./packages/quality) | `pi install npm:quality` | `architect` + `poet` — prose and doc quality |
+| [`presentation`](./packages/presentation) | `pi install npm:presentation` | `gws` + `md-gdoc` — Google Workspace output |
 
-```bash
-pi install npm:pi-essence
-```
+## Packages
 
-## What's included
+### ideation
 
-### Skills
+Skills for building pi plugins:
 
-| Skill | Description | Status |
-|-------|-------------|--------|
-| `coach` | Guided pi skill creation — naming rules, description optimization, validation, templates | ✅ |
-| `poet` | Human-facing prose quality — active voice, concision, specificity for README, docs, changelogs | ✅ |
-| `architect` | AI-consumable doc quality — RFC 2119, metadata, language rules for SKILL.md and system prompts | ✅ |
-| `web-search` | Search the web and extract page content | 🔜 |
-| `code-review` | Structured code review workflow | 🔜 |
-| `git-workflow` | Conventional commits, PR descriptions, changelogs | 🔜 |
+- **`smith`** — create, scaffold, and debug pi extensions (TypeScript)
+- **`coach`** — create, scaffold, and validate pi skills (SKILL.md)
 
-### Extensions
+### quality
 
-| Extension | Description | Status |
-|-----------|-------------|--------|
-| `guardrails` | Block destructive bash commands; protect `.env`/secret files | 🔜 |
-| `memory` | Persist named facts across sessions | 🔜 |
+Skills for reviewing and improving documentation:
+
+- **`architect`** — validate AI-consumable markdown: SKILL.md, system prompts, commands, RFC 2119 enforcement
+- **`poet`** — improve human-facing prose: README, docs, changelogs, roadmaps
+
+### presentation
+
+Skills for Google Workspace output:
+
+- **`gws`** — Drive, Gmail, Sheets, Calendar, Docs, Slides, Tasks, Chat, and more via the `gws` CLI
+- **`md-gdoc`** — convert `.md` files to Google Docs (tables, mermaid diagrams, images)
 
 ## For contributors & AI agents
 
