@@ -30,7 +30,7 @@ const path = require('path');
 
 const argv = process.argv.slice(2);
 if (!argv[0] || argv[0] === '--help') {
-  console.error('Usage: node convert.js <input.md> [--title "Title"] [--folder-id ID] [--page-width 468] [--paged]');
+  console.error('Usage: node convert.js <input.md> [--title "Title"] [--folder-id ID] [--page-width 468] [--paged] [--doc-id DOCID]');
   process.exit(1);
 }
 
@@ -41,12 +41,14 @@ let title       = path.basename(inputFile, path.extname(inputFile));
 let folderId    = null;
 let pageWidthPt = 468;
 let paged       = false;
+let existingDocId = null;
 
 for (let i = 1; i < argv.length; i++) {
-  if      (argv[i] === '--title'      && argv[i+1]) title       = argv[++i];
-  else if (argv[i] === '--folder-id'  && argv[i+1]) folderId    = argv[++i];
-  else if (argv[i] === '--page-width' && argv[i+1]) pageWidthPt = parseFloat(argv[++i]);
-  else if (argv[i] === '--paged')                   paged       = true;
+  if      (argv[i] === '--title'      && argv[i+1]) title          = argv[++i];
+  else if (argv[i] === '--folder-id'  && argv[i+1]) folderId       = argv[++i];
+  else if (argv[i] === '--page-width' && argv[i+1]) pageWidthPt    = parseFloat(argv[++i]);
+  else if (argv[i] === '--paged')                   paged          = true;
+  else if (argv[i] === '--doc-id'     && argv[i+1]) existingDocId  = argv[++i];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -168,6 +170,20 @@ function uploadNative(mdContent) {
   return file.id;
 }
 
+// ─── Update existing Google Doc content (--doc-id path) ───────────────────────
+
+function updateNative(mdContent, docId) {
+  const localMd = '.md-gdoc-upload.md';
+  fs.writeFileSync(localMd, mdContent, 'utf8');
+  try {
+    run('gws', ['drive', 'files', 'update',
+                '--params', JSON.stringify({ fileId: docId }),
+                '--upload', localMd,
+                '--upload-content-type', 'text/markdown',
+                '--json', '{}']);
+  } finally { try { fs.unlinkSync(localMd); } catch {} }
+}
+
 // ─── Post-processing requests ─────────────────────────────────────────────────
 
 function pagelessRequest() {
@@ -245,15 +261,23 @@ function cleanupDriveFiles(images) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 function main() {
-  console.error(`\nmd-to-gdoc: "${path.basename(inputFile)}" → "${title}" (pageless: ${!paged})`);
+  const mode = existingDocId ? 'update' : 'create';
+  console.error(`\nmd-to-gdoc: "${path.basename(inputFile)}" → "${title}" (pageless: ${!paged}, mode: ${mode})`);
 
   console.error('[1/3] Pre-processing...');
   const { md, blocks } = preprocessMarkdown(fs.readFileSync(inputFile, 'utf8'));
   const images = blocks.length ? prepareMermaidImages(blocks) : {};
 
   console.error('[2/3] Uploading (native markdown import)...');
-  const docId = uploadNative(md);
-  console.error(`  ✓ Doc ID: ${docId}`);
+  let docId;
+  if (existingDocId) {
+    updateNative(md, existingDocId);
+    docId = existingDocId;
+    console.error(`  ✓ Doc ID: ${docId} (updated)`);
+  } else {
+    docId = uploadNative(md);
+    console.error(`  ✓ Doc ID: ${docId}`);
+  }
 
   console.error('[3/3] Post-processing...');
 

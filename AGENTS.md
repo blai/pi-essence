@@ -6,7 +6,14 @@
 pi install npm:ideation
 pi install npm:quality
 pi install npm:presentation
+pi install npm:context
 ```
+
+## Extensions
+
+| Package | Extension | Description |
+|---------|-----------|-------------|
+| context | `compress` | Lossless context compression: ANSI stripping, whitespace normalization, line dedup, path shortening. Auto-runs on every tool result from main thread and all subagents. `/compress-stats` for session breakdown. |
 
 ## Skills
 
