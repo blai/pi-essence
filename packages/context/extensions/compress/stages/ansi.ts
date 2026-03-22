@@ -14,5 +14,9 @@
 import { stripVTControlCharacters } from "node:util";
 
 export function stripAnsi(text: string): string {
+	// Fast path: skip the native call entirely when no ESC byte present.
+	// indexOf scans at memory bandwidth; the native VT stripper is fast but
+	// still allocates a new string — both costs are avoided for clean text.
+	if (text.indexOf("\x1b") === -1) return text;
 	return stripVTControlCharacters(text);
 }

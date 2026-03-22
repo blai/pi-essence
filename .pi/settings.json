@@ -1,8 +1,8 @@
 {
   "packages": [
-    "./packages/ideation",
-    "./packages/quality",
-    "./packages/presentation",
-    "./packages/context"
+    "../packages/ideation",
+    "../packages/quality",
+    "../packages/presentation",
+    "../packages/context"
   ]
 }

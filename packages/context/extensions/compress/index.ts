@@ -7,7 +7,7 @@
  *   • ANSI stripping  — via node:util.stripVTControlCharacters
  *   • Whitespace normalization — collapse 3+ blank lines, trailing spaces
  *   Safe to persist: improves TUI readability and session file cleanliness.
- *   Token savings tracked with js-tiktoken (exact BPE counts).
+ *   Token savings tracked with ÷3.5 estimate (same as deferred pipeline).
  *
  * DEFERRED (context hook — deep copy, LLM only):
  *   • Consecutive line dedup  — [N×] markers (confusing in UI)
@@ -26,7 +26,8 @@
 
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { runImmediatePipeline, runDeferredPipeline, type PipelineConfig, type PathEntry } from "./pipeline.js";
-import { countTokens, estimateTokens } from "./stages/tokens.js";
+import { compilePathEntries } from "./stages/paths.js";
+import { estimateTokens } from "./stages/tokens.js";
 
 const MIN_IMMEDIATE_SIZE = 150;
 
@@ -89,7 +90,14 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("session_start", async () => {
 		stats = freshStats();
-		config = { pathEntries: buildPathEntries() };
+		const pathEntries = buildPathEntries();
+		// Fresh blockCache ensures stale entries from the previous session
+		// (different pathEntries) never bleed through.
+		config = {
+			pathEntries,
+			compiledPaths: compilePathEntries(pathEntries),
+			blockCache: new WeakMap(),
+		};
 	});
 
 	// ── tool_result hook — immediate pipeline ───────────────────────────────
@@ -110,9 +118,10 @@ export default function (pi: ExtensionAPI) {
 		const { text: compressed, stagesApplied } = runImmediatePipeline(original, config);
 		if (stagesApplied.length === 0 || compressed.length >= original.length) return undefined;
 
-		// Exact token counts via tiktoken (only for content that changed)
-		const toksBefore = countTokens(original);
-		const toksAfter = countTokens(compressed);
+		// Fast ÷3.5 estimates (same method as deferred pipeline) — avoids
+		// 2 × ~5ms tiktoken BPE calls on every compressed tool result.
+		const toksBefore = estimateTokens(original.length);
+		const toksAfter = estimateTokens(compressed.length);
 
 		stats.immediateCalls++;
 		stats.immediateTokensBefore += toksBefore;
@@ -166,12 +175,12 @@ export default function (pi: ExtensionAPI) {
 
 			const lines = [
 				"── Context Compressor ──────────────────────────────────",
-				`Immediate (tool_result) — ${stats.immediateCalls} results, tiktoken exact`,
+				`Immediate (tool_result) — ${stats.immediateCalls} results, ÷3.5 estimate`,
 				`  ${stats.immediateTokensBefore.toLocaleString()} → ${stats.immediateTokensAfter.toLocaleString()} tokens  (${immPct}% reduction)`,
 				`  Stages: ansi, whitespace`,
 				`Deferred (context) — ${stats.deferredPasses} passes, ÷3.5 estimate`,
 				`  ${(stats.deferredCharsBefore / 1024).toFixed(1)} KB → ${(stats.deferredCharsAfter / 1024).toFixed(1)} KB  (${defPct}% reduction)`,
-				`  Stages: dedup, paths, json→toon`,
+				`  Stages: sep-norm, dedup, paths, json→toon`,
 				"────────────────────────────────────────────────────────",
 				`Total saved: ~${totalSaved.toLocaleString()} tokens`,
 			];

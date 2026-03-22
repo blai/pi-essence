@@ -17,13 +17,42 @@
 import { stripAnsi } from "./stages/ansi.js";
 import { normalizeWhitespace } from "./stages/whitespace.js";
 import { foldConsecutiveDuplicates } from "./stages/dedup.js";
-import { compressPaths, type PathEntry } from "./stages/paths.js";
+import { normalizeSeparators } from "./stages/separator.js";
+import { compressPaths, compilePathEntries, type PathEntry, type CompiledPathEntry } from "./stages/paths.js";
 import { jsonToToon } from "./stages/toon.js";
+import { compressDynamicTokens } from "./stages/tokens_dyn.js";
 
-export type { PathEntry };
+export type { PathEntry, CompiledPathEntry };
+
+/** Cached compression result for a single text block. */
+export interface BlockCacheEntry {
+	block: ContentBlock;
+	charsBefore: number;
+	charsAfter: number;
+}
+
+/** Pre-compiled path entry for fast replacement (avoids per-call RegExp construction). */
+export interface CompiledPathEntry extends PathEntry {
+	re: RegExp;
+	minOccurrences: number;
+}
 
 export interface PipelineConfig {
 	pathEntries: PathEntry[];
+	/**
+	 * Pre-compiled regex entries — built once from pathEntries and reused
+	 * across all compressPaths calls. Avoids `new RegExp(...)` overhead per call.
+	 */
+	compiledPaths?: CompiledPathEntry[];
+	/**
+	 * Optional WeakMap cache for deferred pipeline results.
+	 * Key: original ContentBlock object (reference-stable across context calls).
+	 * Value: previously-compressed block + char counts.
+	 *
+	 * Reset this by assigning a new WeakMap at session_start so stale cache
+	 * entries don't outlive their session config (pathEntries, etc.).
+	 */
+	blockCache?: WeakMap<object, BlockCacheEntry>;
 }
 
 // ── Immediate pipeline ──────────────────────────────────────────────────────
@@ -103,21 +132,45 @@ export function runDeferredPipeline(messages: Message[], config: PipelineConfig)
 			const original = (b as unknown as TextBlock).text;
 			if (original.length < MIN_DEFERRED_SIZE) return block;
 
+			// Cache hit: block object seen before → reuse previous result
+			if (config.blockCache) {
+				const hit = config.blockCache.get(b);
+				if (hit) {
+					charsBefore += hit.charsBefore;
+					charsAfter += hit.charsAfter;
+					msgChanged = true;
+					return hit.block;
+				}
+			}
+
 			let text = original;
 
-			// Stage 1: consecutive line dedup
+			// Stage 1: separator line normalization (before dedup so normalized
+			// separators are identical and fold cleanly)
+			const sepNorm = normalizeSeparators(text);
+			if (sepNorm !== text) text = sepNorm;
+
+			// Stage 2: consecutive line dedup
 			const deduped = foldConsecutiveDuplicates(text);
 			if (deduped !== text) text = deduped;
 
-			// Stage 2: path compression
+			// Stage 3: path compression (use pre-compiled regexes when available)
 			if (config.pathEntries.length > 0) {
-				const pathed = compressPaths(text, config.pathEntries);
+				const pathed = compressPaths(text, config.pathEntries, config.compiledPaths);
 				if (pathed !== text) text = pathed;
 			}
 
-			// Stage 3: JSON → TOON (only if text is entirely valid JSON)
+			// Stage 4: JSON → TOON (only if text is entirely valid JSON)
+			// Must run before dynamic tokens so JSON structure is intact.
 			const tooned = jsonToToon(text);
 			if (tooned !== text) text = tooned;
+
+			// Stage 5: dynamic repeated-token compression
+			// Runs after TOON so JSON is handled by the better codec first;
+			// dynamic tokens then catches any repeated patterns in TOON output
+			// or in non-JSON text (stack traces, log lines, etc.).
+			const dynCompressed = compressDynamicTokens(text);
+			if (dynCompressed !== text) text = dynCompressed;
 
 			if (text === original) return block;
 
@@ -125,7 +178,12 @@ export function runDeferredPipeline(messages: Message[], config: PipelineConfig)
 			charsAfter += text.length;
 			msgChanged = true;
 
-			return { ...b, text } as unknown as ContentBlock;
+			const compressed = { ...b, text } as unknown as ContentBlock;
+
+			// Store result in cache keyed by the original block reference
+			config.blockCache?.set(b, { block: compressed, charsBefore: original.length, charsAfter: text.length });
+
+			return compressed;
 		});
 
 		if (!msgChanged) return msg;
