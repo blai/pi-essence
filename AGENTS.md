@@ -6,14 +6,14 @@
 pi install npm:ideation
 pi install npm:quality
 pi install npm:presentation
-pi install npm:context
+pi install npm:airgun
 ```
 
 ## Extensions
 
 | Package | Extension | Description |
 |---------|-----------|-------------|
-| context | `compress` | Lossless context compression: ANSI stripping, whitespace normalization, line dedup, path shortening. Auto-runs on every tool result from main thread and all subagents. `/compress-stats` for session breakdown. |
+| airgun | `compress` | Lossless context compression: ANSI stripping, whitespace normalization, line dedup, path shortening. Auto-runs on every tool result from main thread and all subagents. `/compress-stats` for session breakdown. |
 
 ## Skills
 

@@ -3,6 +3,6 @@
     "../packages/ideation",
     "../packages/quality",
     "../packages/presentation",
-    "../packages/context"
+    "../../pi-airgun"
   ]
 }
