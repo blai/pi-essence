@@ -122,11 +122,28 @@ function uploadPngToDrive(localPath, name) {
 function preprocessMarkdown(src) {
   const blocks = []; // { placeholder, code }
   let n = 0;
-  const md = src.replace(/^```mermaid[ \t]*\r?\n([\s\S]*?)^```/gm, (_, code) => {
+  let md = src.replace(/^```mermaid[ \t]*\r?\n([\s\S]*?)^```/gm, (_, code) => {
     n++;
     blocks.push({ placeholder: `MERMAID_PLACEHOLDER_${n}`, code: code.trim() });
     return `MERMAID_PLACEHOLDER_${n}\n\n`;
   });
+
+  // Google Drive's native markdown importer requires a blank line immediately before
+  // a table header row. Without it, tables that follow paragraph text (e.g. a
+  // "**Result:**" label or a closing ``` fence) are not recognised as table objects
+  // and instead render as plain pipe-delimited text. Insert a blank line before every
+  // table row that is not already preceded by a blank line or another table row.
+  const lines = md.split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const prev = out.length ? out[out.length - 1] : '';
+    if (lines[i].startsWith('|') && prev.trim() !== '' && !prev.startsWith('|')) {
+      out.push(''); // inject blank separator
+    }
+    out.push(lines[i]);
+  }
+  md = out.join('\n');
+
   return { md, blocks };
 }
 
