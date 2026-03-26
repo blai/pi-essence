@@ -337,7 +337,7 @@ function pct(part: number, total: number): string {
 function buildSummary(ctx: ExtensionContext): string {
   const s = getSessionStats(ctx);
   const sa = getSubagentStats(ctx);
-  const hasSub = sa.cost > 0;
+  const hasSub = sa.turns > 0;
 
   const grandCost = s.cost + sa.cost;
   const parentTok = s.input + s.output + s.cacheRead + s.cacheWrite;
@@ -456,7 +456,7 @@ function buildSummary(ctx: ExtensionContext): string {
 function buildModelBreakdown(ctx: ExtensionContext): string {
   const parentModels = getModelStats(ctx);
   const sa = getSubagentStats(ctx);
-  const hasSub = sa.cost > 0;
+  const hasSub = sa.turns > 0;
 
   if (parentModels.length === 0 && !hasSub) return "No LLM turns recorded yet.";
 
@@ -734,9 +734,13 @@ export default function teller(pi: ExtensionAPI) {
     const elapsedMin = Math.max((Date.now() - state.sessionStart) / 60_000, 1 / 60);
     const tokRate = Math.round(grandTok / elapsedMin);
 
-    const subLabel = sa.cost > 0 ? ` (↳ ${fmtCost(sa.cost)} sub)` : "";
+    const subLabel = sa.turns > 0 ? ` (↳ ${fmtCost(sa.cost)} sub)` : "";
     ctx.ui.setStatus("teller", `${fmtTokens(grandTok)} tok | ${fmtCost(grandCost)}${subLabel} | ~${fmtTokens(tokRate)}/min`);
 
+    // Note: grandCost here only includes sub-agent costs from tool results ALREADY in the
+    // session branch. Sub-agent costs from the *current* tool-calling turn are appended to
+    // the branch after tool_result fires — which happens before the *next* message_end.
+    // So the budget alert may fire one parent turn after the threshold is first crossed.
     if (state.budget !== null && !state.budgetWarned && grandCost >= state.budget * 0.9) {
       state.budgetWarned = true;
       pi.sendMessage(
