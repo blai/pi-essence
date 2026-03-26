@@ -2,20 +2,21 @@
 
 > Three focused pi skill packages — install the ones you need.
 
-| Package | Install | Skills |
-|---------|---------|--------|
-| [`ideation`](./packages/ideation) | `pi install npm:ideation` | `smith` + `coach` — build pi extensions and skills |
-| [`quality`](./packages/quality) | `pi install npm:quality` | `architect` + `poet` — prose and doc quality |
-| [`presentation`](./packages/presentation) | `pi install npm:presentation` | `gws` + `md-gdoc` — Google Workspace output |
+| Package | Install | Contents |
+|---------|---------|----------|
+| [`ideation`](./packages/ideation) | `pi install npm:ideation` | `smith` + `coach` skills · `teller` extension |
+| [`quality`](./packages/quality) | `pi install npm:quality` | `architect` + `poet` skills |
+| [`presentation`](./packages/presentation) | `pi install npm:presentation` | `gws` + `md-gdoc` skills |
 
 ## Packages
 
 ### ideation
 
-Skills for building pi plugins:
+Skills for building pi plugins, plus a session cost extension:
 
 - **`smith`** — create, scaffold, and debug pi extensions (TypeScript)
 - **`coach`** — create, scaffold, and validate pi skills (SKILL.md)
+- **`teller`** *(extension)* — real-time session cost tracking: exact token counts and cost broken down by type (input/output/cache), per-model, and per-tool. Commands: `/teller`, `/teller models`, `/teller tools`, `/teller messages`, `/teller budget <$N>`. Exposes a `teller_summary` LLM tool for agent self-reporting.
 
 ### quality
 

@@ -2,7 +2,6 @@
   "packages": [
     "../packages/ideation",
     "../packages/quality",
-    "../packages/presentation",
-    "../../pi-airgun"
+    "../packages/presentation"
   ]
 }

@@ -6,14 +6,13 @@
 pi install npm:ideation
 pi install npm:quality
 pi install npm:presentation
-pi install npm:airgun
 ```
 
 ## Extensions
 
 | Package | Extension | Description |
 |---------|-----------|-------------|
-| airgun | `compress` | Lossless context compression: ANSI stripping, whitespace normalization, line dedup, path shortening. Auto-runs on every tool result from main thread and all subagents. `/compress-stats` for session breakdown. |
+| ideation | `teller` | Session cost intelligence: exact token counts + cost by type, per-model breakdown, per-tool attribution. `/teller`, `/teller models`, `/teller tools`, `/teller messages`, `/teller budget <$N>`. |
 
 ## Skills
 
