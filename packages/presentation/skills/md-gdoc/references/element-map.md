@@ -141,3 +141,37 @@ The URL must be publicly accessible at call time. For local images, upload to Dr
 | US Letter | 0.75" each | 8.5" | **504 pt** |
 
 Use `--page-width <pt>` when running `convert.js` for non-Letter documents.
+
+---
+
+## Tab-replay behavior (`md-to-tab-native.js`)
+
+These quirks apply specifically when replaying a temp doc's body into an existing tab via `md-to-tab-native.js`.
+
+### U+000B (soft-return / vertical-tab) in text runs
+
+**What Drive does:** Consecutive `**Field**: value` lines separated by a Markdown hard-break (trailing two spaces `  `) are imported as a single paragraph with `U+000B` (soft-return) characters between them. The rendered doc shows each field on its own line within that paragraph — no extra spacing between fields.
+
+**What the Docs API `insertText` does:** Silently drops `U+000B`. The inserted text is shorter than expected, and all subsequent style indices are shifted, causing `updateTextStyle` to fail with "Index N must be less than the end index of the referenced segment."
+
+**Fix in `md-to-tab-native.js`:** Replace `U+000B` → `\n` when reading text runs from the temp doc. `\n` is accepted by `insertText` (creates a paragraph break). Default `NORMAL_TEXT` has `spaceAbove: 0pt` / `spaceBelow: 0pt`, so consecutive paragraphs look identical to soft-return lines.
+
+### Style range bounds clamping
+
+After `insertText`, the actual segment end is read back via `documents.get` and stored. Every style request's `endIndex` is clamped to this value before sending. This guards against any edge-case where the calculated `idx` drifts slightly from the actual inserted length.
+
+### Inline images in tab replay
+
+`insertInlineImage` requires a publicly accessible URL. Mermaid PNGs are uploaded to Drive, made public, inserted, then deleted. After deletion the image URL is no longer valid, so it cannot be used in a later tab replay. **Mermaid diagrams will appear as blank spaces in tabs produced by `md-to-tab-native.js`.** They render correctly in standalone docs produced by `convert.js`.
+
+### Empty-cell `insertText` location
+
+When filling cells in a freshly-created table, each cell body has one empty paragraph `[si, si+1]`. The valid `insertText` location is `si` (before the mandatory `\n`). Using `si+1` equals `endIndex` and is outside the paragraph bounds — the API rejects it with "insertion index must be inside the bounds of an existing paragraph."
+
+### Empty-tab `deleteContentRange`
+
+A freshly-created empty tab has `maxEnd = 1` (just the sectionBreak). Calling `deleteContentRange(1, 0)` is an invalid empty range. The script only deletes when `maxEnd > 2`.
+
+### `convert.js --doc-id` on multi-tab documents
+
+`drive.files.update` with `text/markdown` re-imports the markdown as a complete new document body, destroying all tabs. `convert.js` detects `tabs.length > 1` and refuses with an error, directing the caller to use `md-to-tab-native.js` instead.

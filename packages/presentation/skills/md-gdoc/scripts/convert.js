@@ -133,14 +133,34 @@ function preprocessMarkdown(src) {
   // "**Result:**" label or a closing ``` fence) are not recognised as table objects
   // and instead render as plain pipe-delimited text. Insert a blank line before every
   // table row that is not already preceded by a blank line or another table row.
+  //
+  // Similarly, consecutive bold-field lines (**Key**: value) with only a single
+  // newline between them are treated as a Markdown soft break and merged into one
+  // paragraph — so metadata headers (Domain, Analysis date, Services covered …)
+  // all collapse onto one line in the rendered Doc. Inject a blank line between
+  // each consecutive pair so Drive creates a separate paragraph per field.
+  const isBoldField = (s) => /^\*\*[^*]/.test(s);  // line starts with **word
+
   const lines = md.split('\n');
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const prev = out.length ? out[out.length - 1] : '';
-    if (lines[i].startsWith('|') && prev.trim() !== '' && !prev.startsWith('|')) {
-      out.push(''); // inject blank separator
+    const cur  = lines[i];
+    const next = lines[i + 1] ?? '';
+
+    // Table blank-line injection (existing rule)
+    if (cur.startsWith('|') && prev.trim() !== '' && !prev.startsWith('|')) {
+      out.push('');
     }
-    out.push(lines[i]);
+
+    // Bold-field hard-break: append trailing two spaces (Markdown hard break = <br>)
+    // when a **Key**: line is immediately followed by another **Key**: line.
+    // This keeps all metadata fields inside one tight paragraph (no extra spacing)
+    // while still forcing each field onto its own line in the rendered Doc.
+    // Do NOT use blank-line injection here — that creates separate paragraphs
+    // with full paragraph spacing between every field.
+    const boldBreak = isBoldField(cur) && isBoldField(next) && !cur.endsWith('  ');
+    out.push(boldBreak ? cur + '  ' : cur);
   }
   md = out.join('\n');
 
@@ -288,6 +308,22 @@ function main() {
   console.error('[2/3] Uploading (native markdown import)...');
   let docId;
   if (existingDocId) {
+    // Guard: Drive file update re-imports the whole document, destroying all tabs.
+    // If the target doc has multiple tabs, refuse and instruct the caller to use
+    // md-to-tab-native.js targeting the specific tab instead.
+    const docMeta = gwsJSON(['docs', 'documents', 'get',
+      '--params', JSON.stringify({ documentId: existingDocId, includeTabsContent: true })]);
+    const tabs = docMeta.tabs || [];
+    if (tabs.length > 1) {
+      const firstTabId = tabs[0].tabProperties.tabId;
+      const tabList = tabs.map(t => `  ${t.tabProperties.tabId} "${t.tabProperties.title}"`).join('\n');
+      throw new Error(
+        `--doc-id refused: "${existingDocId}" has ${tabs.length} tabs:\n${tabList}\n\n` +
+        `drive.files.update would destroy all tabs except Tab 1.\n` +
+        `To update Tab 1 safely (preserving other tabs), run:\n\n` +
+        `  node scripts/md-to-tab-native.js "${inputFile}" --doc-id ${existingDocId} --tab-id ${firstTabId}\n`
+      );
+    }
     updateNative(md, existingDocId);
     docId = existingDocId;
     console.error(`  ✓ Doc ID: ${docId} (updated)`);
