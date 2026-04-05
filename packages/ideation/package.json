@@ -6,6 +6,7 @@
   "license": "MIT",
   "pi": {
     "skills": ["./skills"],
+    "prompts": ["./prompts"],
     "extensions": ["./extensions/teller.ts"]
   },
   "peerDependencies": {

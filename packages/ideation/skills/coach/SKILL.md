@@ -43,7 +43,7 @@ Keep `SKILL.md` under **500 lines**. Move heavy content to `references/`.
 ## References    — links to references/ files, loaded only when needed
 ```
 
-**Progressive disclosure** — each reference entry must say "load when [condition]". The agent reads them on demand, not upfront.
+**Progressive disclosure** — each reference entry must say "load when [condition]". The agent reads them on demand, not upfront. Keep *constraining* content inline (output schemas, limits, names of things dispatched, role boundaries); move *explanatory* content to references (rationale, worked examples, how-to background). If you can caption a section "why" or "how", it's a candidate to move out.
 
 ### Step 4: Bundle scripts for deterministic steps
 
@@ -67,6 +67,16 @@ Scripts fail with helpful errors → agent self-corrects.
 Run `node skills/coach/scripts/validate.js skills/my-skill/SKILL.md`. Test auto-triggering with 3+ prompts. Not triggering? See `references/description-guide.md`.
 
 ---
+
+## Gotchas — Writing Effective Skills
+
+- **Name every dependency explicitly.** An orchestration skill that dispatches agents, tools, or sub-skills by category ("the appropriate agent", "each review skill", "the relevant tool") is a correctness hazard. The model scans its environment and picks whatever matches the description — in a multi-package install this often means wrong tools, wrong behavior, non-deterministic results. Name every dispatched agent, skill, and tool by its exact identifier.
+
+- **Name the constraint, not the procedure.** If a step tells the LLM *how* to do something it already knows — searching files, using version control, identifying common types — the detail almost never changes its behavior. What changes behavior is the *constraint* on the outcome: limits, schemas, required fields, conditions. Write what the output must satisfy, not how to produce it. If a step describes what the LLM would do unprompted anyway, cut it.
+
+- **Compact schema notation for flat output shapes.** A multi-line JSON or markdown example teaches the same field names as inline notation with a fraction of the words. `[{field_a, field_b, field_c}]` is sufficient for flat, self-explanatory schemas. Reserve full examples only for genuinely non-obvious structures — deep nesting, conditional fields, or non-standard types.
+
+- **Test your detail sections before you ship.** Every major instruction block should pass a behavioral test: *does the LLM act differently without this?* Run the skill with the section present, run it without, compare on a realistic task. If there is no observable difference, the content is decoration — cut it. More detail does not reliably mean better results.
 
 ## Gotchas — Pi-Specific Behavior
 

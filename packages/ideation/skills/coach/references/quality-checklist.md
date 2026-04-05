@@ -22,6 +22,8 @@
 - [ ] Body is under 500 lines (or heavy content moved to `references/`)
 - [ ] References are loaded on-demand ("load this file when X") not preloaded
 - [ ] No unfilled placeholders (TODO, FIXME, `<YOUR...>`, "placeholder")
+- [ ] Every dispatched agent, skill, or tool is named by its exact identifier — no categorical references ("each X skill", "the appropriate tool")
+- [ ] At least one major detail section has been tested: does removing it change LLM behavior on a realistic task? Untested detail is a liability.
 
 ### Scripts (if bundled)
 

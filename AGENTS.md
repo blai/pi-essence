@@ -14,6 +14,12 @@ pi install npm:presentation
 |---------|-----------|-------------|
 | ideation | `teller` | Session cost intelligence: exact token counts + cost by type, per-model breakdown, per-tool attribution. `/teller`, `/teller models`, `/teller tools`, `/teller messages`, `/teller budget <$N>`. |
 
+## Prompt Templates
+
+| Package | Template | Description |
+|---------|----------|--------------|
+| ideation | `/trainer <dir>` | Optimize pi tools (skills/agents/prompts) via LLM A/B behavioral tests using autoresearch |
+
 ## Skills
 
 | Package | Skill | Description |

@@ -18,7 +18,7 @@ Return violations `{type,line,issue,fix,severity}`, errors first. Then output th
 
 ## Violation Types
 
-- `error`: `missing_metadata`, `invalid_requirement_keyword`
+- `error`: `missing_metadata`, `invalid_requirement_keyword`, `vague_dispatch_reference`
 - `warning`: `unnecessary_metadata`, `duplicate_concept`, `passive_voice`, `non_imperative_mood`, `ambiguous_pronoun`, `insufficient_examples`
 - `info`: `vague_quantifier`, `vague_temporal_indicator`, `conversational_softener`, `patronizing_word`
 
@@ -46,6 +46,7 @@ Scan non-excluded content for repeated concepts (similarity ≥ 0.7, length ≥ 
 
 Skip excluded ranges (Step 2).
 
+- Categorical dispatch language (`vague_dispatch_reference`): phrases that name an agent, skill, or tool by category rather than by exact identifier — "each [type] skill", "the appropriate agent", "the relevant tool", "any available [role]" — when the context is an invocation instruction. Categorical language in descriptive prose is fine; flag only when the phrase determines *what gets called*.
 - RFC 2119 (`invalid_requirement_keyword`): should/could/would/may/might/can — requirement statements, not rationale
 - Ambiguous pronouns (`ambiguous_pronoun`): it/this/that — when referent unclear
 - Vague quantifiers (`vague_quantifier`): many/few/some/several
