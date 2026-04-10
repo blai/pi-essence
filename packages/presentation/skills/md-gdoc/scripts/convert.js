@@ -125,7 +125,7 @@ function preprocessMarkdown(src) {
   let md = src.replace(/^```mermaid[ \t]*\r?\n([\s\S]*?)^```/gm, (_, code) => {
     n++;
     blocks.push({ placeholder: `MERMAID_PLACEHOLDER_${n}`, code: code.trim() });
-    return `MERMAID_PLACEHOLDER_${n}\n\n`;
+    return `\nMERMAID_PLACEHOLDER_${n}\n\n`; // leading \n guarantees own paragraph even without blank line in source
   });
 
   // Google Drive's native markdown importer requires a blank line immediately before
@@ -340,25 +340,30 @@ function main() {
     '--json',   JSON.stringify({ requests: reqs }),
   ]);
 
-  // Pass 1: pageless + mermaid image insertion (these shift document indices)
-  const doc1    = gwsJSON(['docs', 'documents', 'get', '--params', JSON.stringify({ documentId: docId })]);
-  const pass1   = [
-    ...(!paged ? [pagelessRequest()] : []),
-    ...mermaidRequests(doc1.body?.content ?? [], images),
-  ];
-  if (pass1.length) { console.error(`  pass 1: ${pass1.length} request(s)...`); batchUpdate(pass1); }
+  // Always delete temp mermaid Drive files, even if post-processing errors.
+  // Images are made public during upload (required by insertInlineImage API);
+  // leaving them behind as orphaned public files triggers DLP/security alerts.
+  try {
+    // Pass 1: pageless + mermaid image insertion (these shift document indices)
+    const doc1    = gwsJSON(['docs', 'documents', 'get', '--params', JSON.stringify({ documentId: docId })]);
+    const pass1   = [
+      ...(!paged ? [pagelessRequest()] : []),
+      ...mermaidRequests(doc1.body?.content ?? [], images),
+    ];
+    if (pass1.length) { console.error(`  pass 1: ${pass1.length} request(s)...`); batchUpdate(pass1); }
 
-  // Pass 2: table styling — refetch so indices reflect mermaid insertions
-  const doc2    = gwsJSON(['docs', 'documents', 'get', '--params', JSON.stringify({ documentId: docId })]);
-  const pass2   = [
-    ...tableBorderRequests(doc2.body?.content ?? []),
-    ...tableWidthRequests(doc2.body?.content ?? []),
-  ];
-  if (pass2.length) { console.error(`  pass 2: ${pass2.length} request(s)...`); batchUpdate(pass2); }
-
-  if (Object.keys(images).length) {
-    console.error('  cleaning up temp Drive files...');
-    cleanupDriveFiles(images);
+    // Pass 2: table styling — refetch so indices reflect mermaid insertions
+    const doc2    = gwsJSON(['docs', 'documents', 'get', '--params', JSON.stringify({ documentId: docId })]);
+    const pass2   = [
+      ...tableBorderRequests(doc2.body?.content ?? []),
+      ...tableWidthRequests(doc2.body?.content ?? []),
+    ];
+    if (pass2.length) { console.error(`  pass 2: ${pass2.length} request(s)...`); batchUpdate(pass2); }
+  } finally {
+    if (Object.keys(images).length) {
+      console.error('  cleaning up temp Drive files...');
+      cleanupDriveFiles(images);
+    }
   }
 
   const url = `https://docs.google.com/document/d/${docId}/edit`;
