@@ -32,8 +32,7 @@ Ask:
 | Multi-file or npm deps | `<location>/<name>/index.ts` + optional `package.json` |
 | Distribute via npm/git | pi package with `"pi": { "extensions": [...] }` in `package.json` |
 
-Test any location with: `pi -e ./path/to/extension.ts`
-Hot-reload after edits (auto-discovered locations only): `/reload`
+Test any location with: `pi -e ./path/to/extension.ts`. Hot-reload at auto-discovered locations: `/reload`.
 
 ### Step 3: Choose capabilities
 
@@ -63,33 +62,19 @@ Start from `references/extension-template.ts` and apply patterns from `reference
 
 ### Step 5: Test
 
-```bash
-pi -e ./path/to/extension.ts
-```
-
-Trigger each tool, command, and event handler. For interactive features, verify `ctx.hasUI` path works. Run with `-p` flag to test non-interactive path.
-
-After confirming it works, move to the auto-discovered location and use `/reload` for hot-reload during iteration.
+Run `pi -e ./path/to/extension.ts`. Trigger each tool, command, and event handler. Verify `ctx.hasUI` path with `-p` flag. After confirming, move to the auto-discovered location and use `/reload`.
 
 ---
 
 ## Gotchas
 
-- **`StringEnum` is mandatory for enums.** `Type.Union([Type.Literal("a"), ...])` fails silently on Google Gemini — the tool gets called with undefined params. Always use `StringEnum(["a", "b"] as const)` from `@mariozechner/pi-ai`.
-
-- **State without `details` breaks on fork.** In-memory state diverges from session state when the user branches. The only safe pattern: store state in tool result `details`, reconstruct from `ctx.sessionManager.getBranch()` on `session_start`, `session_switch`, `session_fork`, and `session_tree`.
-
-- **`ctx.hasUI` is false in print mode (`-p`) and JSON mode.** Dialog methods return their default values silently. Always check before calling `select`, `confirm`, `input`. In non-interactive `tool_call` handlers, default to block.
-
 - **`pi.exec` not `ctx.exec`.** Shell commands use `pi.exec("git", ["status"])` captured from the extension closure — it does not live on `ctx`.
 
 - **`ctx.reload()` / `ctx.waitForIdle()` only in commands.** Calling either from an event handler can deadlock. Register a `/reload-runtime` command and have tools queue it via `pi.sendUserMessage`.
 
-- **`tool_call` does not see sibling tool results.** In parallel execution mode, when two tools run in the same turn, a `tool_call` handler for tool B cannot read tool A's result from `ctx.sessionManager`.
+- **`tool_call` does not see sibling tool results.** In parallel execution mode, a `tool_call` handler for tool B cannot read tool A's result from `ctx.sessionManager`.
 
 - **Path arguments may have a leading `@`.** Some models prefix path arguments with `@`. Strip it: `const p = params.path.replace(/^@/, "")`.
-
-- **Hot-reload requires auto-discovered location.** `/reload` only works for extensions in `~/.pi/agent/extensions/` or `.pi/extensions/`. Extensions loaded via `pi -e` require a full restart.
 
 ---
 

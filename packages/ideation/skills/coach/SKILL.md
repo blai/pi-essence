@@ -35,32 +35,17 @@ The description is the **only** thing the agent sees before loading — if it's 
 
 Keep `SKILL.md` under **500 lines**. Move heavy content to `references/`.
 
-**Standard structure:**
-```
-## Setup         — one-time install / config steps (delete if not needed)
-## Workflow      — numbered steps the agent follows (required)
-## Gotchas       — non-obvious facts, edge cases, common mistakes (high value)
-## References    — links to references/ files, loaded only when needed
-```
+**Standard sections:** `## Setup` (one-time install/config; delete if not needed) · `## Workflow` (numbered steps; required) · `## Gotchas` (non-obvious facts, edge cases) · `## References` (load-on-demand links).
 
-**Progressive disclosure** — each reference entry must say "load when [condition]". The agent reads them on demand, not upfront. Keep *constraining* content inline (output schemas, limits, names of things dispatched, role boundaries); move *explanatory* content to references (rationale, worked examples, how-to background). If you can caption a section "why" or "how", it's a candidate to move out.
+**Progressive disclosure** — each reference entry must say "load when [condition]". Keep *constraining* content inline (output schemas, limits, names of dispatched agents/tools, role boundaries); move *explanatory* content to references (rationale, worked examples). If you can caption a section "why" or "how", it belongs in references.
 
 ### Step 4: Bundle scripts for deterministic steps
 
 Use `scripts/` for tasks the agent might hallucinate or do inconsistently.
 
-**Bundle a script when:** logic repeats every run, output must be precise, or the step is fragile (wrong output = wrong result).
+**Bundle a script when:** logic repeats every run, output must be precise, or the step is fragile.
 
-**Self-correcting validation loop pattern:**
-```markdown
-## Workflow
-
-1. Run: `node scripts/validate.js output/`
-2. If validation fails, review the error, fix the issue, re-validate
-3. Only proceed when validation passes
-```
-
-Scripts fail with helpful errors → agent self-corrects.
+**Pattern:** `1. Run: node scripts/validate.js output/ | 2. If validation fails, fix and re-validate | 3. Only proceed when validation passes.` Scripts fail with helpful errors → agent self-corrects.
 
 ### Step 5: Validate
 
@@ -70,13 +55,13 @@ Run `node skills/coach/scripts/validate.js skills/my-skill/SKILL.md`. Test auto-
 
 ## Gotchas — Writing Effective Skills
 
-- **Name every dependency explicitly.** An orchestration skill that dispatches agents, tools, or sub-skills by category ("the appropriate agent", "each review skill", "the relevant tool") is a correctness hazard. The model scans its environment and picks whatever matches the description — in a multi-package install this often means wrong tools, wrong behavior, non-deterministic results. Name every dispatched agent, skill, and tool by its exact identifier.
+- **Name every dependency explicitly.** Never dispatch by category ("the appropriate agent", "each review skill") — name every dispatched agent, skill, and tool by its exact identifier. Category language in multi-package installs causes wrong tools and non-deterministic results.
 
-- **Name the constraint, not the procedure.** If a step tells the LLM *how* to do something it already knows — searching files, using version control, identifying common types — the detail almost never changes its behavior. What changes behavior is the *constraint* on the outcome: limits, schemas, required fields, conditions. Write what the output must satisfy, not how to produce it. If a step describes what the LLM would do unprompted anyway, cut it.
+- **Name the constraint, not the procedure.** Write what the output must satisfy (limits, schemas, required fields, conditions), not how to produce it. If a step describes what the LLM would do unprompted, cut it.
 
-- **Compact schema notation for flat output shapes.** A multi-line JSON or markdown example teaches the same field names as inline notation with a fraction of the words. `[{field_a, field_b, field_c}]` is sufficient for flat, self-explanatory schemas. Reserve full examples only for genuinely non-obvious structures — deep nesting, conditional fields, or non-standard types.
+- **Compact schema notation for flat output shapes.** `[{field_a, field_b, field_c}]` teaches the same field names as a multi-line example. Reserve full examples for non-obvious structures (deep nesting, conditional fields).
 
-- **Test your detail sections before you ship.** Every major instruction block should pass a behavioral test: *does the LLM act differently without this?* Run the skill with the section present, run it without, compare on a realistic task. If there is no observable difference, the content is decoration — cut it. More detail does not reliably mean better results.
+- **Test your detail sections before you ship.** If the LLM behaves identically without a section, cut it. More detail does not reliably mean better results.
 
 ## Gotchas — Pi-Specific Behavior
 

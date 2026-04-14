@@ -12,13 +12,7 @@ description: >
 
 ## Setup
 
-```bash
-# Authenticate gws with Drive + Docs (one-time per machine)
-gws auth login -s drive,docs
-
-# Verify curl is available (used for mermaid rendering)
-curl --version
-```
+Authenticate: `gws auth login -s drive,docs`. Verify curl is installed (`curl --version`).
 
 ## Workflow — Single document (one .md file)
 
@@ -35,9 +29,7 @@ curl --version
    ```bash
    node skills/md-gdoc/scripts/update-title-link.js <input.md> <gdoc_url>
    ```
-   Updates the H1 heading in `input.md` to hyperlink the document-type phrase back
-   to the GDoc (e.g. `# Architecture Gap Report — X` → `# [Architecture Gap Report](url) — X`).
-   Then re-run convert.js with `--doc-id DOC_ID` to push the updated title to the same doc.
+   Auto-detects the heading pattern and embeds the GDoc URL in the H1. Then re-run convert.js with `--doc-id DOC_ID` to push the updated title to the same doc.
 
 3. **If the script errors**, diagnose with the checklist below, then re-run:
    - `gws auth login -s drive,docs` → re-authenticate if token expired
@@ -88,50 +80,9 @@ node skills/md-gdoc/scripts/md-to-tab-native.js updated.md \
 ```
 
 > **Important — do NOT use `convert.js --doc-id` on a multi-tab document.**
-> `convert.js --doc-id` uses `drive.files.update` which re-imports the markdown
-> as a brand-new document body, silently destroying all tabs except Tab 1.
+> `convert.js --doc-id` re-imports the markdown as a brand-new document body, silently destroying all tabs except Tab 1.
 > The script detects this and refuses with an error if the target doc has > 1 tab.
 > Use `md-to-tab-native.js` for all tab updates.
-
-## What the Scripts Do
-
-### `convert.js`
-
-| Step | Action |
-|------|--------|
-| 1 | Scans for `mermaid` fenced blocks → renders each via mermaid.ink → uploads PNG to Drive (public) |
-| 2 | Injects blank lines before tables (Drive import requires them) and trailing `  ` between consecutive `**Field**: value` lines (so metadata renders one-per-line) |
-| 3 | Uploads `.md` as `text/markdown` with `mimeType: application/vnd.google-apps.document` — Drive natively converts |
-| 4 | Sets pageless mode |
-| 5 | Replaces mermaid placeholder paragraphs with `insertInlineImage` |
-| 6 | Applies table borders, header shading, and sqrt-weighted column widths |
-| 7 | Deletes temporary mermaid PNGs from Drive |
-
-### `update-title-link.js`
-
-Embeds the GDoc URL into the report's H1 title.  Auto-detects the heading pattern:
-
-| Pattern | Before | After |
-|---|---|---|
-| Bare bracketed tag (RCA style) | `# [RCA] [TC-5328](...): Title` | `# [[RCA]](url) [TC-5328](...): Title` |
-| Phrase before `—` (arch-gap style) | `# Architecture Gap Report — Domain` | `# [Architecture Gap Report](url) — Domain` |
-| Phrase before `:` | `# My Report: Subtitle` | `# [My Report](url): Subtitle` |
-| Bare title | `# My Report` | `# [My Report](url)` |
-| Already linked | `# [Phrase](old_url) ...` | `# [Phrase](new_url) ...` (URL updated) |
-
-Idempotent — safe to call multiple times. Writes the `.md` file in-place.
-
-### `md-to-tab-native.js`
-
-| Step | Action |
-|------|--------|
-| 1 | Runs `convert.js` on the input file → creates a perfectly-formatted temporary Doc |
-| 2 | Reads the temp doc's structured body via `documents.get` |
-| 3 | Clears the target tab's existing content |
-| 4 | Inserts all body text into the tab via one `insertText` call |
-| 5 | Applies paragraph styles (headings) + text-run styles (bold/italic/link/mono). Note: native Docs bullet formatting is NOT replayed (list-item text `- ` / `1. ` is preserved verbatim) — see element-map.md for why |
-| 6 | Replaces `TABLE_N` placeholders (reverse order) with real `insertTable` + fills cells + applies column widths + borders + header shading |
-| 7 | Deletes the temporary doc |
 
 ## Gotchas
 
@@ -142,7 +93,7 @@ Idempotent — safe to call multiple times. Writes the `.md` file in-place.
 - **Images in source .md** — only publicly accessible remote URLs are supported; Drive's native import cannot resolve local file paths.
 - **Table optimization is non-fatal** — if `updateTableColumnProperties` fails (e.g., single-column table), it logs a warning and the script still succeeds.
 - **Auth scopes** — `gws auth login` without `-s` grants all scopes; `-s drive,docs` is sufficient and narrower.
-- **Mermaid diagrams in tabs** — `md-to-tab-native.js` cannot re-insert mermaid diagrams into a tab (Drive has no API to copy embedded images between documents). Diagrams render as blank spaces in tab replays; they render correctly in standalone docs via `convert.js`.
+- **Mermaid diagrams in tabs** — `md-to-tab-native.js` cannot re-insert mermaid diagrams into a tab. Diagrams render as blank spaces in tab replays; they render correctly in standalone docs via `convert.js`.
 
 ## References
 
